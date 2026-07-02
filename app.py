@@ -1,5 +1,6 @@
 import streamlit as st
 from src.summarizer import summarize_url, summarize_text
+from src.translator import translate_sentences, translate_keywords
 
 st.set_page_config(page_title="Peringkas Berita Otomatis", layout="wide")
 st.title("Peringkas Artikel Berita Otomatis")
@@ -14,6 +15,15 @@ with st.sidebar:
     lang = lang_map[lang_option]
     top_n = st.slider("Jumlah kalimat ringkasan", 1, 15, 5)
     num_keywords = st.slider("Jumlah kata kunci", 5, 30, 10)
+
+    st.divider()
+    st.header("Terjemahan")
+    translate_option = st.selectbox(
+        "Bahasa tampilan hasil",
+        ["Asli", "Bahasa Indonesia", "English"],
+    )
+    translate_map = {"Asli": None, "Bahasa Indonesia": "id", "English": "en"}
+    target_lang = translate_map[translate_option]
 
 with tab_url:
     url = st.text_input("Masukkan URL artikel berita:")
@@ -53,21 +63,42 @@ if "result" in st.session_state:
     col2.metric("Kalimat Ringkasan", result["num_sentences_summary"])
     col3.metric("Bahasa", "Indonesia" if result["lang"] == "id" else "English")
 
+    display_sentences = result["summary_sentences"]
+    display_keywords = result["keywords"]
+    translation_failed = False
+
+    if target_lang and target_lang != result["lang"]:
+        with st.spinner("Menerjemahkan hasil..."):
+            try:
+                display_sentences = translate_sentences(
+                    result["summary_sentences"], target_lang=target_lang,
+                )
+                display_keywords = translate_keywords(
+                    result["keywords"], target_lang=target_lang,
+                )
+            except Exception as e:
+                translation_failed = True
+                st.warning(f"Terjemahan gagal, menampilkan teks asli: {e}")
+
     st.subheader("Ringkasan")
+    if target_lang and target_lang != result["lang"] and not translation_failed:
+        lang_label = "Bahasa Indonesia" if target_lang == "id" else "English"
+        st.caption(f"Diterjemahkan ke {lang_label}")
+
     display_mode = st.radio(
         "Tampilan:",
         ["List Bernomor", "Paragraf"],
         horizontal=True,
     )
     if display_mode == "List Bernomor":
-        for i, sent in enumerate(result["summary_sentences"], 1):
+        for i, sent in enumerate(display_sentences, 1):
             st.write(f"{i}. {sent}")
     else:
-        st.write(" ".join(result["summary_sentences"]))
+        st.write(" ".join(display_sentences))
 
     st.subheader("Kata Kunci (TF-IDF)")
-    kw_cols = st.columns(min(len(result["keywords"]), 5))
-    for i, (word, score) in enumerate(result["keywords"]):
+    kw_cols = st.columns(min(len(display_keywords), 5))
+    for i, (word, score) in enumerate(display_keywords):
         kw_cols[i % len(kw_cols)].code(f"{word}: {score:.4f}")
 
     with st.expander("Lihat teks asli (sudah dibersihkan)"):
