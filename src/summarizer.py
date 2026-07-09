@@ -1,3 +1,5 @@
+"""Modul summarizer: pipeline utama peringkasan teks dan artikel dari URL."""
+
 from __future__ import annotations
 
 from .scraper import scrape_article
@@ -13,6 +15,16 @@ def summarize_text(
     top_n: int = 5,
     num_keywords: int = 10,
 ) -> dict:
+    """Ringkas teks artikel melalui pipeline: cleaning → preprocessing → TextRank.
+
+    Parameter:
+        text: teks artikel mentah.
+        lang: kode bahasa ('id'/'en'), atau None untuk deteksi otomatis.
+        top_n: jumlah kalimat ringkasan.
+        num_keywords: jumlah kata kunci TF-IDF yang diekstrak.
+    Return:
+        Dict berisi teks asli, teks bersih, bahasa, kalimat ringkasan, kata kunci, dsb.
+    """
     cleaned = clean_text(text)
     if lang is None:
         lang = detect_language(cleaned)
@@ -42,6 +54,16 @@ def summarize_url(
     top_n: int = 5,
     num_keywords: int = 10,
 ) -> dict:
+    """Ringkas artikel dari URL: scraping → cleaning → preprocessing → TextRank.
+
+    Parameter:
+        url: URL artikel berita.
+        lang: kode bahasa ('id'/'en'), atau None untuk deteksi otomatis.
+        top_n: jumlah kalimat ringkasan.
+        num_keywords: jumlah kata kunci TF-IDF yang diekstrak.
+    Return:
+        Dict berisi judul, URL, metode scraping, dan hasil ringkasan.
+    """
     article = scrape_article(url)
     result = summarize_text(
         article["text"], lang=lang, top_n=top_n, num_keywords=num_keywords

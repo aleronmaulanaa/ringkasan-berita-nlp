@@ -1,6 +1,9 @@
+"""Modul cleaner: membersihkan teks artikel dari boilerplate, URL, email, dan noise."""
+
 import re
 import unicodedata
 
+# Daftar frasa boilerplate yang sering muncul di artikel berita Indonesia & Inggris
 BOILERPLATE_EXACT = [
     "scroll to continue with content",
     "scroll to continue",
@@ -73,6 +76,7 @@ BOILERPLATE_EXACT = [
     "jangan lewatkan:",
 ]
 
+# Pola regex untuk mendeteksi boilerplate yang bervariasi penulisannya
 BOILERPLATE_PATTERNS = [
     re.compile(r"^baca juga\s*:", re.IGNORECASE),
     re.compile(r"^simak (?:juga )?video\b", re.IGNORECASE),
@@ -96,6 +100,7 @@ BOILERPLATE_PATTERNS = [
     re.compile(r"^(?:ikuti|follow)\s+kami\b", re.IGNORECASE),
 ]
 
+# Kata-kata pendek yang menandakan noise jika muncul di kalimat sangat singkat (<4 kata)
 _SHORT_NOISE_WORDS = {
     "scroll", "advertisement", "iklan", "klik", "click",
     "baca", "read", "share", "bagikan", "subscribe",
@@ -104,8 +109,10 @@ _SHORT_NOISE_WORDS = {
 }
 
 
+# Filter frasa minimal 2 kata untuk pencocokan inline di tengah kalimat
 _INLINE_PHRASES = [p for p in BOILERPLATE_EXACT if len(p.split()) >= 2]
 
+# Regex gabungan semua frasa inline, diurutkan terpanjang dulu agar greedy match benar
 _INLINE_BOILERPLATE_RE = re.compile(
     "|".join(re.escape(phrase) for phrase in sorted(_INLINE_PHRASES, key=len, reverse=True)),
     re.IGNORECASE,
@@ -113,12 +120,26 @@ _INLINE_BOILERPLATE_RE = re.compile(
 
 
 def strip_inline_boilerplate(text: str) -> str:
+    """Hapus frasa boilerplate yang muncul di tengah teks.
+
+    Parameter:
+        text: teks yang akan dibersihkan.
+    Return:
+        Teks tanpa frasa boilerplate inline.
+    """
     text = _INLINE_BOILERPLATE_RE.sub("", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
 def clean_text(text: str) -> str:
+    """Bersihkan teks artikel dari URL, email, tag HTML, dan boilerplate.
+
+    Parameter:
+        text: teks mentah hasil scraping.
+    Return:
+        Teks bersih siap diproses lebih lanjut.
+    """
     text = unicodedata.normalize("NFKD", text)
     text = re.sub(r"https?://\S+", "", text)
     text = re.sub(r"\S+@\S+", "", text)
@@ -130,6 +151,13 @@ def clean_text(text: str) -> str:
 
 
 def _is_boilerplate(sentence: str) -> bool:
+    """Cek apakah suatu kalimat merupakan boilerplate.
+
+    Parameter:
+        sentence: kalimat yang akan dicek.
+    Return:
+        True jika kalimat terdeteksi sebagai boilerplate.
+    """
     stripped = sentence.strip()
     lowered = stripped.lower()
 
@@ -140,6 +168,7 @@ def _is_boilerplate(sentence: str) -> bool:
         if pattern.search(stripped):
             return True
 
+    # Kalimat sangat pendek yang mengandung kata noise dianggap boilerplate
     words = lowered.split()
     if len(words) < 4 and any(w in _SHORT_NOISE_WORDS for w in words):
         return True
@@ -148,4 +177,11 @@ def _is_boilerplate(sentence: str) -> bool:
 
 
 def filter_boilerplate_sentences(sentences: list) -> list:
+    """Filter daftar kalimat, buang yang terdeteksi sebagai boilerplate.
+
+    Parameter:
+        sentences: daftar kalimat.
+    Return:
+        Daftar kalimat yang bukan boilerplate.
+    """
     return [s for s in sentences if not _is_boilerplate(s)]

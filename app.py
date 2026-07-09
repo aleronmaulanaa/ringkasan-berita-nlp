@@ -1,3 +1,8 @@
+"""Aplikasi web Streamlit untuk peringkasan berita otomatis.
+
+Mendukung input dari URL atau teks langsung, dengan opsi terjemahan hasil.
+"""
+
 import streamlit as st
 from src.summarizer import summarize_url, summarize_text
 from src.translator import translate_sentences, translate_keywords
@@ -8,6 +13,7 @@ st.caption("Ekstraktif · TextRank + TF-IDF · Bahasa Indonesia & Inggris")
 
 tab_url, tab_text = st.tabs(["Dari URL", "Dari Teks"])
 
+# --- Sidebar: pengaturan parameter ringkasan dan terjemahan ---
 with st.sidebar:
     st.header("Pengaturan")
     lang_option = st.selectbox("Bahasa", ["Deteksi Otomatis", "Indonesia", "English"])
@@ -25,6 +31,7 @@ with st.sidebar:
     translate_map = {"Asli": None, "Bahasa Indonesia": "id", "English": "en"}
     target_lang = translate_map[translate_option]
 
+# --- Tab input dari URL ---
 with tab_url:
     url = st.text_input("Masukkan URL artikel berita:")
     if st.button("Ringkas dari URL", type="primary"):
@@ -38,6 +45,7 @@ with tab_url:
                 except Exception as e:
                     st.error(f"Terjadi kesalahan: {e}")
 
+# --- Tab input dari teks langsung ---
 with tab_text:
     text_input = st.text_area("Tempel teks artikel di sini:", height=250)
     if st.button("Ringkas dari Teks", type="primary"):
@@ -51,6 +59,7 @@ with tab_text:
                 except Exception as e:
                     st.error(f"Terjadi kesalahan: {e}")
 
+# --- Tampilkan hasil ringkasan jika tersedia ---
 if "result" in st.session_state:
     result = st.session_state["result"]
     st.divider()
@@ -67,6 +76,7 @@ if "result" in st.session_state:
     display_keywords = result["keywords"]
     translation_failed = False
 
+    # Terjemahkan hasil jika bahasa target berbeda dari bahasa asli
     if target_lang and target_lang != result["lang"]:
         with st.spinner("Menerjemahkan hasil..."):
             try:
